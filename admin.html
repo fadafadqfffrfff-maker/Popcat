@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Owner Panel - Pop Cat Remake</title>
+    <!-- Memuat Firebase SDK Versi Klasik (Anti-Gagal) -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #1a1a1a;
+            color: #ffffff;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+        .container {
+            background-color: #2d2d2d;
+            padding: 30px;
+            border-radius: 12px;
+            width: 100%;
+            max-width: 450px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+            box-sizing: border-box;
+        }
+        h2 { text-align: center; margin-top: 0; color: #e74c3c; border-bottom: 2px solid #444; padding-bottom: 10px; }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        input[type="text"], input[type="number"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #444;
+            border-radius: 6px;
+            background-color: #1e1e1e;
+            color: #fff;
+            box-sizing: border-box;
+            font-size: 15px;
+        }
+        input:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 15px;
+            cursor: pointer;
+            transition: background 0.2s;
+            margin-top: 5px;
+        }
+        .btn-blue { background-color: #3498db; color: white; }
+        .btn-blue:hover { background-color: #2980b9; }
+        .btn-red { background-color: #c0392b; color: white; }
+        .btn-red:hover { background-color: #a93226; }
+        .btn-green { background-color: #27ae60; color: white; }
+        .btn-green:hover { background-color: #219653; }
+        .btn-critical { background-color: #e74c3c; color: white; padding: 15px; font-size: 16px; border: 2px dashed #fff; }
+        .btn-critical:hover { background-color: #c0392b; }
+        
+        .section-box {
+            background-color: #222;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #333;
+        }
+        .section-title {
+            margin: 0 0 10px 0;
+            font-size: 15px;
+            font-weight: bold;
+            border-bottom: 1px solid #444;
+            padding-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>⚙️ CONTROL PANEL OWNER</h2>
+        <p style="text-align: center; color: #2ecc71; font-size: 14px; margin-top: -5px;">Server Administrator Mode</p>
+
+        <!-- Fitur 1: Atur Skor Individu -->
+        <div class="section-box">
+            <div class="section-title" style="color: #3498db;">🎯 Atur Poin Player</div>
+            <div class="form-group">
+                <input id="target-user" type="text" placeholder="Username Player">
+            </div>
+            <div class="form-group">
+                <input id="target-score" type="number" placeholder="Set Skor Baru (Misal: 0)">
+            </div>
+            <button onclick="executeSingleReset()" class="btn-blue">Eksekusi Skor Baru</button>
+        </div>
+
+        <!-- Fitur 2: Banned Player + Reason -->
+        <div class="section-box">
+            <div class="section-title" style="color: #e74c3c;">🔨 Banned System</div>
+            <div class="form-group">
+                <input id="ban-user" type="text" placeholder="Username Target">
+            </div>
+            <div class="form-group">
+                <input id="ban-reason" type="text" placeholder="Alasan Banned (Reason)">
+            </div>
+            <button onclick="executeBanPlayer()" class="btn-red">Banned Akun & Sesi</button>
+        </div>
+
+        <!-- Fitur 3: Unbanned Player -->
+        <div class="section-box">
+            <div class="section-title" style="color: #27ae60;">✅ Unbanned System</div>
+            <div class="form-group">
+                <input id="unban-user" type="text" placeholder="Username Player">
+            </div>
+            <button onclick="executeUnbanPlayer()" class="btn-green">Lepas Status Banned</button>
+        </div>
+
+        <!-- Fitur 4: Reset Season Massal -->
+        <div class="section-box" style="border: 1px solid #e74c3c; background-color: #3a1c1c;">
+            <div class="section-title" style="color: #e74c3c;">🔄 Reset Global (Reset Season)</div>
+            <p style="margin: 0 0 10px 0; font-size: 12px; color: #eaa;">⚠️ Semua skor & koin seluruh player di server Singapura akan otomatis hangus kembali ke 0.</p>
+            <button onclick="executeSeasonReset()" class="btn-critical">🔥 RESET SEMUA PLAYER (NEW SEASON)</button>
+        </div>
+    </div>
+
+    <script>
+        // Konfigurasi Firebase Realtime Database Aliansyah
+        const firebaseConfig = {
+          apiKey: "AIzaSyBeR6NWjwcck52gcARSlVcvP_Sd1YwFUWQ",
+          authDomain: "soaljancok.firebaseapp.com",
+          databaseURL: "https://soaljancok-default-rtdb.asia-southeast1.firebasedatabase.app",
+          projectId: "soaljancok",
+          storageBucket: "soaljancok.firebasestorage.app",
+          messagingSenderId: "358347913427",
+          appId: "1:358347913427:web:673ae3148518c2d1effc26",
+          measurementId: "G-EHFDWFTWH4"
+        };
+
+        // Inisialisasi Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        let allUsersData = {};
+
+        // Mendengarkan database secara realtime
+        db.ref('users').on('value', (snapshot) => {
+            allUsersData = snapshot.val() || {};
+        });
+
+        // 1. Fungsi Mengatur Skor Player Individu
+        function executeSingleReset() {
+            const userTarget = document.getElementById('target-user').value.trim();
+            const scoreTarget = parseInt(document.getElementById('target-score').value.trim());
+
+            if (!userTarget || isNaN(scoreTarget)) { alert("Harap isi username dan nilai skor baru!"); return; }
+            if (!allUsersData[userTarget]) { alert("Player tidak ditemukan di database server!"); return; }
+
+            db.ref(`users/${userTarget}/highestScore`).set(scoreTarget)
+            .then(() => {
+                alert(`Berhasil merubah skor [${userTarget}] menjadi ${scoreTarget} Pop!`);
+                document.getElementById('target-user').value = "";
+                document.getElementById('target-score').value = "";
+            }).catch(e => alert("Gagal koneksi database: " + e.message));
+        }
+
+        // 2. Fungsi Banned Akun
+        function executeBanPlayer() {
+            const banTarget = document.getElementById('ban-user').value.trim();
+            const reasonText = document.getElementById('ban-reason').value.trim() || "Melanggar peraturan komunitas game.";
+
+            if (!banTarget) { alert("Masukkan username player yang ingin dibanned!"); return; }
+            if (banTarget === "Aliansyah") { alert("Sistem Error: Anda tidak bisa membanned akun owner sendiri!"); return; }
+
+            db.ref('banned_users/' + banTarget).set({
+                reason: reasonText,
+                bannedAt: new Date().toISOString()
+            })
+            .then(() => {
+                alert(`🔨 Akun [${banTarget}] Berhasil Di-banned Permanen!\nAlasan: ${reasonText}`);
+                document.getElementById('ban-user').value = "";
+                document.getElementById('ban-reason').value = "";
+            }).catch(e => alert("Gagal membanned: " + e.message));
+        }
+
+        // 3. Fungsi Unbanned Akun
+        function executeUnbanPlayer() {
+            const unbanTarget = document.getElementById('unban-user').value.trim();
+            if (!unbanTarget) { alert("Masukkan nama player!"); return; }
+
+            db.ref('banned_users/' + unbanTarget).remove()
+            .then(() => {
+                alert(`✅ Blokir sukses dilepas! Akun [${unbanTarget}] sudah bisa login kembali.`);
+                document.getElementById('unban-user').value = "";
+            }).catch(e => alert("Gagal unban: " + e.message));
+        }
+
+        // 4. Fungsi Reset Global (Ganti Season)
+        function executeSeasonReset() {
+            if (!confirm("🚨 PERINGATAN KERAS!\nApakah kamu benar-benar ingin mereset TOTAL skor dan koin semua player di server menjadi 0? Tindakan ini tidak bisa dibatalkan.")) return;
+
+            let updates = {};
+            for (let name in allUsersData) {
+                updates[`/users/${name}/highestScore`] = 0;
+                updates[`/users/${name}/coins`] = 0;
+            }
+
+            db.ref().update(updates)
+            .then(() => {
+                alert("🎉 RESET SEASON BERHASIL! Seluruh isi leaderboard server kembali bersih dari awal.");
+            }).catch(e => alert("Gagal Reset Season: " + e.message));
+        }
+    </script>
+</body>
+</html>
