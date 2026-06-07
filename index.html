@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Pop Cat - Toko, Rank & Rich Leaderboard</title>
+    <style>
+        body { margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; height: 100vh; background-color: #f0f0f0; font-family: Arial, sans-serif; user-select: none; -webkit-user-select: none; position: relative; overflow: hidden; }
+        .auth-container { background-color: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); text-align: center; width: 300px; z-index: 30; }
+        .auth-container h2 { margin-top: 0; color: #333; }
+        .auth-container input { width: 90%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 5px; font-size: 1rem; }
+        .auth-container button { width: 97%; padding: 10px; background-color: #333; color: white; border: none; border-radius: 5px; font-size: 1rem; cursor: pointer; margin-top: 10px; }
+        .auth-container button:hover { background-color: #555; }
+        .auth-container p { margin-top: 15px; font-size: 0.9rem; color: #666; }
+        .auth-container span { color: #007BFF; cursor: pointer; text-decoration: underline; }
+        .menu-btn { position: absolute; top: 20px; left: 20px; display: none; flex-direction: column; justify-content: space-between; width: 6px; height: 24px; cursor: pointer; z-index: 10; padding: 10px; }
+        .menu-btn .dot { width: 6px; height: 6px; background-color: #333; border-radius: 50%; }
+        .game-container { display: none; text-align: center; position: relative; }
+        .rank-display { font-size: 1.2rem; font-weight: bold; color: #555; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 1px; }
+        .stats-container { display: flex; justify-content: center; gap: 30px; margin-bottom: 20px; }
+        .score-board { font-size: 3rem; font-weight: bold; color: #333; }
+        .coin-board { font-size: 3rem; font-weight: bold; color: #FFD700; text-shadow: 1px 1px 2px rgba(0,0,0,0.2); }
+        .cat-box { position: relative; width: 350px; height: 350px; cursor: pointer; margin: 0 auto; z-index: 5; }
+        .cat-img { width: 100%; height: 100%; object-fit: contain; position: absolute; top: 0; left: 0; display: none; }
+        #cat-closed { display: block; }
+        
+        .watermark-text {
+            position: absolute;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.9rem;
+            font-weight: bold;
+            color: #888;
+            letter-spacing: 0.5px;
+            z-index: 2;
+            text-shadow: 1px 1px 0px rgba(255,255,255,0.8);
+            pointer-events: none;
+        }
+
+        .pop-number { position: fixed; font-size: 2.5rem; font-weight: 900; color: #222; text-shadow: 2px 2px 0px #fff, -2px -2px 0px #fff, 2px -2px 0px #fff, -2px 2px 0px #fff; pointer-events: none; z-index: 99; animation: floatUp 0.4s ease-out forwards; }
+        @keyframes floatUp { 0% { transform: translate(-50%, -50%) translateY(0) scale(0.8); opacity: 1; } 100% { transform: translate(-50%, -50%) translateY(-60px) scale(1.2); opacity: 0; } }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5); z-index: 20; justify-content: center; align-items: center; }
+        .modal-content { background-color: white; padding: 25px; border-radius: 15px; width: 340px; max-width: 90%; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+        .modal-content h2 { margin-top: 0; color: #333; margin-bottom: 15px; }
+        .close-btn { background-color: #333; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-size: 1rem; margin-top: 15px; }
+        .close-btn:hover { background-color: #555; }
+        .menu-options { display: flex; flex-direction: column; gap: 15px; margin: 20px 0; }
+        .menu-options button { padding: 12px; font-size: 1.1rem; font-weight: bold; border-radius: 8px; border: 1px solid #ccc; background-color: #fff; cursor: pointer; transition: 0.2s; }
+        .menu-options button:hover { background-color: #eee; }
+        .leaderboard-tabs { display: flex; justify-content: space-around; margin-bottom: 15px; border-bottom: 2px solid #eee; }
+        .tab-btn { background: none; border: none; padding: 10px; font-weight: bold; font-size: 0.9rem; cursor: pointer; color: #888; }
+        .tab-btn.active { color: #333; border-bottom: 3px solid #333; }
+        .leaderboard-list { list-style: none; padding: 0; margin: 10px 0; text-align: left; max-height: 250px; overflow-y: auto; }
+        .leaderboard-list li { padding: 10px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; font-size: 1rem; }
+        .leaderboard-list li:nth-child(1) { font-weight: bold; color: gold; }
+        .leaderboard-list li:nth-child(2) { font-weight: bold; color: silver; }
+        .leaderboard-list li:nth-child(3) { font-weight: bold; color: #cd7f32; }
+        .shop-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 10px; border-bottom: 1px solid #eee; text-align: left; }
+        .shop-item-info { flex: 1; }
+        .shop-item-title { font-weight: bold; font-size: 1rem; color: #222; }
+        .shop-item-desc { font-size: 0.8rem; color: #666; margin-top: 2px; }
+        .buy-btn { background-color: #28a745; color: white; border: none; padding: 8px 12px; border-radius: 5px; font-weight: bold; cursor: pointer; font-size: 0.9rem; min-width: 80px; }
+        .buy-btn:hover { background-color: #218838; }
+    </style>
+    <!-- Memuat Script Modular SDK Firebase v9 (Kompatibilitas Global) -->
+    <script type="importmap">
+      {
+        "imports": {
+          "firebase/app": "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js",
+          "firebase/database": "https://www.gstatic.com/firebasejs/9.22.1/firebase-database.js"
+        }
+      }
+    </script>
+</head>
+<body>
+    <div class="auth-container" id="auth-box">
+        <h2 id="auth-title">Masuk Game</h2>
+        <input type="text" id="auth-username" placeholder="Masukkan Username" required>
+        <input type="password" id="auth-password" placeholder="Masukkan Password" required>
+        <button id="auth-submit-btn" onclick="handleAuthSubmit()">Masuk</button>
+        <p id="auth-toggle-text">Belum punya akun? <span onclick="toggleAuthMode()">Daftar disini</span></p>
+    </div>
+
+    <div class="menu-btn" id="menu-btn" onclick="openMainMenu()">
+        <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+    </div>
+
+    <div class="game-container" id="game-box">
+        <div class="rank-display" id="user-rank-display">RANK: NO RANK</div>
+        <div class="stats-container">
+            <div class="score-board" id="score">0</div>
+            <div class="coin-board" id="coin">🪙 0</div>
+        </div>
+        <div class="cat-box" id="cat-btn">
+            <img id="cat-closed" class="cat-img" src="popnomount.png" alt="Kucing Tertutup">
+            <img id="cat-open" class="cat-img" src="popupcat.png" alt="Kucing Terbuka">
+        </div>
+    </div>
+
+    <div class="watermark-text">game remake pop up by Aliansyah</div>
+
+    <div class="modal" id="main-menu-modal">
+        <div class="modal-content">
+            <h2>⚙️ MENU GAME</h2>
+            <div class="menu-options">
+                <button onclick="switchModal('main-menu-modal', 'leaderboard-modal')">🏆 LEADERBOARD</button>
+                <button onclick="switchModal('main-menu-modal', 'shop-modal')">🛒 SHOP / TOKO</button>
+            </div>
+            <button class="close-btn" onclick="closeModal('main-menu-modal')">Kembali Bermain</button>
+        </div>
+    </div>
+
+    <div class="modal" id="leaderboard-modal">
+        <div class="modal-content">
+            <h2>🏆 PAPAN PERINGKAT</h2>
+            <div class="leaderboard-tabs">
+                <button class="tab-btn active" id="tab-pop" onclick="changeLeaderboardTab('pop')">TOP POP</button>
+                <button class="tab-btn" id="tab-coin" onclick="changeLeaderboardTab('coin')">TOP RICHEST</button>
+                <button class="tab-btn" id="tab-rank" onclick="changeLeaderboardTab('rank')">TOP RANK</button>
+            </div>
+            <ul class="leaderboard-list" id="leaderboard-list"></ul>
+            <button class="close-btn" onclick="switchModal('leaderboard-modal', 'main-menu-modal')">Kembali</button>
+        </div>
+    </div>
+
+    <div class="modal" id="shop-modal">
+        <div class="modal-content">
+            <h2>🛒 TOKO UPGRADE</h2>
+            <div style="font-weight: bold; margin-bottom: 15px; color: #FFD700;" id="shop-coin-display">🪙 Koin: 0</div>
+            <div class="shop-item">
+                <div class="shop-item-info">
+                    <div class="shop-item-title">Pop Multiplier</div>
+                    <div class="shop-item-desc" id="pop-multiplier-desc">Efek: +1 Pop/klik</div>
+                </div>
+                <button class="buy-btn" id="buy-multiplier-btn" onclick="buyPopMultiplier()">20 🪙</button>
+            </div>
+            <div class="shop-item">
+                <div class="shop-item-info">
+                    <div class="shop-item-title">Bonus Koin 100x</div>
+                    <div class="shop-item-desc" id="coin-upgrade-desc">Efek: +1 Koin/100 Pop</div>
+                </div>
+                <button class="buy-btn" id="buy-coin-btn" onclick="buyCoinUpgrade()">50 🪙</button>
+            </div>
+            <button class="close-btn" onclick="switchModal('shop-modal', 'main-menu-modal')">Kembali</button>
+        </div>
+    </div>
+
+    <audio id="pop-sound" src="pop-cat-original-meme.mp3" preload="auto"></audio>
+    <script type="module">
+        import { initializeApp } from "firebase/app";
+        import { getDatabase, ref, set, get, child, onValue } from "firebase/database";
+
+        // Konfigurasi Akun Firebase Milik Aliansyah
+        const firebaseConfig = {
+          apiKey: "AIzaSyBeR6NWjwcck52gcARSlVcvP_Sd1YwFUWQ",
+          authDomain: "soaljancok.firebaseapp.com",
+          databaseURL: "https://soaljancok-default-rtdb.asia-southeast1.firebasedatabase.app",
+          projectId: "soaljancok",
+          storageBucket: "soaljancok.firebasestorage.app",
+          messagingSenderId: "358347913427",
+          appId: "1:358347913427:web:673ae3148518c2d1effc26",
+          measurementId: "G-EHFDWFTWH4"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        // Menghubungkan variabel lokal ke window global agar bisa dieksekusi oleh tombol HTML luar
+        window.handleAuthSubmit = handleAuthSubmit;
+        window.toggleAuthMode = toggleAuthMode;
+        window.openMainMenu = openMainMenu;
+        window.closeModal = closeModal;
+        window.switchModal = switchModal;
+        window.buyPopMultiplier = buyPopMultiplier;
+        window.buyCoinUpgrade = buyCoinUpgrade;
+        window.changeLeaderboardTab = changeLeaderboardTab;
+
+        const authBox = document.getElementById('auth-box');
+        const gameBox = document.getElementById('game-box');
+        const menuBtn = document.getElementById('menu-btn');
+        const authTitle = document.getElementById('auth-title');
+        const authUsernameInput = document.getElementById('auth-username');
+        const authPasswordInput = document.getElementById('auth-password');
+        const authSubmitBtn = document.getElementById('auth-submit-btn');
+        const authToggleText = document.getElementById('auth-toggle-text');
+        const catBtn = document.getElementById('cat-btn');
+        const catClosed = document.getElementById('cat-closed');
+        const catOpen = document.getElementById('cat-open');
+        const scoreDisplay = document.getElementById('score');
+        const coinDisplay = document.getElementById('coin');
+        const userRankDisplay = document.getElementById('user-rank-display');
+        const shopCoinDisplay = document.getElementById('shop-coin-display');
+        const popSound = document.getElementById('pop-sound');
+        const leaderboardList = document.getElementById('leaderboard-list');
+        const popMultiplierDesc = document.getElementById('pop-multiplier-desc');
+        const buyMultiplierBtn = document.getElementById('buy-multiplier-btn');
+        const coinUpgradeDesc = document.getElementById('coin-upgrade-desc');
+        const buyCoinBtn = document.getElementById('buy-coin-btn');
+
+        let score = 0; let loggedInUser = ""; let isRegisterMode = false; let currentTab = "pop";
+        let playerStats = { coins: 0, popValue: 1, coinsPer100: 1, multiplierPrice: 20, coinUpgradePrice: 50 };
+        let allUsersData = {}; 
+
+        function calculateRank(popScore) {
+            if (popScore < 700) return 0; if (popScore >= 700 && popScore < 1600) return 1;
+            if (popScore >= 1600 && popScore < 3200) return 2; if (popScore >= 3200 && popScore < 6400) return 3;
+            let baseScore = 6400; let rank = 4;
+            while (popScore >= baseScore && rank < 10) { baseScore *= 2; if (popScore >= baseScore) rank++; }
+            return rank;
+        }
+
+        function openMainMenu() { document.getElementById('main-menu-modal').style.display = 'flex'; }
+        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+        function switchModal(closeId, openId) { closeModal(closeId); if(openId === 'leaderboard-modal') updateLeaderboardDisplay(); if(openId === 'shop-modal') updateShopDisplay(); document.getElementById(openId).style.display = 'flex'; }
+        function isAnyModalOpen() { return document.getElementById('main-menu-modal').style.display === 'flex' || document.getElementById('leaderboard-modal').style.display === 'flex' || document.getElementById('shop-modal').style.display === 'flex'; }
+
+        function toggleAuthMode() {
+            isRegisterMode = !isRegisterMode;
+            if (isRegisterMode) {
+                authTitle.textContent = "Daftar Akun"; authSubmitBtn.textContent = "Daftar Baru";
+                authToggleText.innerHTML = 'Sudah punya akun? <span onclick="toggleAuthMode()">Masuk disini</span>';
+            } else {
+                authTitle.textContent = "Masuk Game"; authSubmitBtn.textContent = "Masuk";
+                authToggleText.innerHTML = 'Belum punya akun? <span onclick="toggleAuthMode()">Daftar disini</span>';
+            }
+            authUsernameInput.value = ""; authPasswordInput.value = "";
+        }
+
+        // Cek Auto-Login saat halaman web pertama kali dimuat
+        window.addEventListener('DOMContentLoaded', () => {
+            const savedUser = localStorage.getItem('popcat_session_user');
+            const savedPass = localStorage.getItem('popcat_session_pass');
+            if (savedUser && savedPass) {
+                // Jika data login tersimpan di browser, langsung jalankan fungsi login otomatis
+                authUsernameInput.value = savedUser;
+                authPasswordInput.value = savedPass;
+                handleAuthSubmit(true); // Parameter true menandakan ini auto-login siluman
+            }
+        });
+
+        // Fungsi Autentikasi Firebase
+        function handleAuthSubmit(isAutoLogin = false) {
+            const username = authUsernameInput.value.trim().replace(/[.#$\[\]]/g, ""); 
+            const password = authPasswordInput.value.trim();
+            if (!username || !password) { if(!isAutoLogin) alert("Harap isi semua kolom!"); return; }
+
+            const userRef = ref(db, 'users/' + username);
+            get(userRef).then((snapshot) => {
+                if (isRegisterMode) {
+                    if (snapshot.exists()) { alert("Username sudah terpakai di server!"); } else {
+                        set(userRef, { password: password, coins: 0, popValue: 1, coinsPer100: 1, multiplierPrice: 20, coinUpgradePrice: 50, highestScore: 0 })
+                        .then(() => { 
+                            // Simpan sesi login baru setelah berhasil daftar
+                            localStorage.setItem('popcat_session_user', username);
+                            localStorage.setItem('popcat_session_pass', password);
+                            alert("Pendaftaran Sukses! Akun tersimpan."); 
+                            location.reload(); // Muat ulang agar langsung otomatis masuk game
+                        })
+                        .catch((e) => alert("Gagal mendaftar: " + e.message));
+                    }
+                } else {
+                    if (snapshot.exists() && snapshot.val().password === password) {
+                        const data = snapshot.val(); loggedInUser = username;
+                        playerStats.coins = data.coins ?? 0; playerStats.popValue = data.popValue ?? 1;
+                        playerStats.coinsPer100 = data.coinsPer100 ?? 1; playerStats.multiplierPrice = data.multiplierPrice ?? 20;
+                        playerStats.coinUpgradePrice = data.coinUpgradePrice ?? 50; score = data.highestScore ?? 0;
+                        
+                        // Simpan atau perbarui sesi login lokal
+                        localStorage.setItem('popcat_session_user', username);
+                        localStorage.setItem('popcat_session_pass', password);
+                        
+                        startGame();
+                    } else { 
+                        if (isAutoLogin) {
+                            // Jika auto login gagal karena password di database diubah admin, hapus sesi lama
+                            localStorage.removeItem('popcat_session_user');
+                            localStorage.removeItem('popcat_session_pass');
+                        } else {
+                            alert("Username atau Password salah!"); 
+                        }
+                    }
+                }
+            }).catch((err) => {
+                if(!isAutoLogin) alert("Koneksi Database Error: " + err.message);
+            });
+        }
+
+        function startGame() { 
+            authBox.style.display = 'none'; gameBox.style.display = 'block'; menuBtn.style.display = 'flex'; 
+            coinDisplay.textContent = "🪙 " + playerStats.coins; scoreDisplay.textContent = score; 
+            let currentRank = calculateRank(score); userRankDisplay.textContent = currentRank === 0 ? "RANK: NO RANK" : `RANK: ${currentRank} 🏆`; 
+            
+            const allUsersRef = ref(db, 'users');
+            onValue(allUsersRef, (snapshot) => {
+                allUsersData = snapshot.val() || {};
+                if(document.getElementById('leaderboard-modal').style.display === 'flex') { updateLeaderboardDisplay(); }
+            });
+        }
+
+        function createFloatingNumber(clientX, clientY) {
+            const numEl = document.createElement('div');
+            numEl.className = 'pop-number'; numEl.textContent = `+${playerStats.popValue}`;
+            numEl.style.left = clientX + 'px'; numEl.style.top = clientY + 'px';
+            document.body.appendChild(numEl);
+            setTimeout(() => { numEl.remove(); }, 400);
+        }
+
+        function popCatOpen(e) {
+            if (isAnyModalOpen() || !loggedInUser) return; catClosed.style.display = 'none'; catOpen.style.display = 'block';
+            let oldScore = score; score += playerStats.popValue; scoreDisplay.textContent = score;
+            let currentRank = calculateRank(score); userRankDisplay.textContent = currentRank === 0 ? "RANK: NO RANK" : `RANK: ${currentRank} 🏆`;
+            let oldCheck = Math.floor(oldScore / 100); let newCheck = Math.floor(score / 100);
+            if (newCheck > oldCheck) { playerStats.coins += (newCheck - oldCheck) * playerStats.coinsPer100; coinDisplay.textContent = "🪙 " + playerStats.coins; }
+            savePlayerData(); 
+
+            let clickX = 0, clickY = 0;
+            if (e.touches && e.touches.length > 0) {
+                clickX = e.touches[0].clientX; clickY = e.touches[0].clientY;
+            } else {
+                clickX = e.clientX; clickY = e.clientY;
+            }
+            if (clickX && clickY) createFloatingNumber(clickX, clickY);
+
+            popSound.currentTime = 0; popSound.play().catch(err => console.log(err));
+        }
+        function popCatClose() { catClosed.style.display = 'block'; catOpen.style.display = 'none'; }
+
+        function updateShopDisplay() { shopCoinDisplay.textContent = "🪙 Koin Kamu: " + playerStats.coins; popMultiplierDesc.textContent = `Efek saat ini: +${playerStats.popValue} Pop per klik`; buyMultiplierBtn.textContent = `${playerStats.multiplierPrice} 🪙`; coinUpgradeDesc.textContent = `Efek saat ini: +${playerStats.coinsPer100} Koin per 100 Pop`; buyCoinBtn.textContent = `${playerStats.coinUpgradePrice} 🪙`; }
+
+        function buyPopMultiplier() {
+            if (playerStats.coins >= playerStats.multiplierPrice) {
+                playerStats.coins -= playerStats.multiplierPrice;
+                if (playerStats.multiplierPrice < 80) playerStats.popValue *= 2; else if (playerStats.multiplierPrice >= 80 && playerStats.multiplierPrice < 100) playerStats.popValue += 5; else playerStats.popValue += 1;
+                playerStats.multiplierPrice *= 2; savePlayerData(); updateShopDisplay(); coinDisplay.textContent = "🪙 " + playerStats.coins;
+            } else { alert("Koin kamu tidak cukup!"); }
+        }
+
+        function buyCoinUpgrade() { if (playerStats.coins >= playerStats.coinUpgradePrice) { playerStats.coins -= playerStats.coinUpgradePrice; playerStats.coinsPer100 += 1; playerStats.coinUpgradePrice *= 3; savePlayerData(); updateShopDisplay(); coinDisplay.textContent = "🪙 " + playerStats.coins; } else { alert("Koin kamu tidak cukup!"); } }
+
+        function savePlayerData() {
+            if (!loggedInUser) return;
+            const userRef = ref(db, 'users/' + loggedInUser);
+            set(userRef, {
+                password: allUsersData[loggedInUser]?.password || "123", 
+                coins: playerStats.coins,
+                popValue: playerStats.popValue,
+                coinsPer100: playerStats.coinsPer100,
+                multiplierPrice: playerStats.multiplierPrice,
+                coinUpgradePrice: playerStats.coinUpgradePrice,
+                highestScore: score
+            });
+        }
+
+        function changeLeaderboardTab(tabName) { document.getElementById('tab-pop').classList.remove('active'); document.getElementById('tab-coin').classList.remove('active'); document.getElementById('tab-rank').classList.remove('active'); document.getElementById(`tab-${tabName}`).classList.add('active'); currentTab = tabName; updateLeaderboardDisplay(); }
+
+        function updateLeaderboardDisplay() {
+            leaderboardList.innerHTML = "";
+            let usersArray = []; for (let name in allUsersData) { let userPop = allUsersData[name].highestScore || 0; usersArray.push({ name: name, pop: userPop, coins: allUsersData[name].coins || 0, rank: calculateRank(userPop) }); }
+            if (usersArray.length === 0) { leaderboardList.innerHTML = "<li>Belum ada data skor tercatat di server.</li>"; return; }
+            
+            if (currentTab === "pop") {
+                usersArray.sort((a, b) => b.pop - a.pop); usersArray.forEach((item, index) => { let li = document.createElement('li'); li.innerHTML = `<span>${index + 1}. ${item.name}</span> <span>${item.pop} Pop</span>`; leaderboardList.appendChild(li); });
+            } else if (currentTab === "coin") {
+                usersArray.sort((a, b) => b.coins - a.coins); usersArray.forEach((item, index) => { let li = document.createElement('li'); li.innerHTML = `<span>${index + 1}. ${item.name}</span> <span>🪙 ${item.coins}</span>`; leaderboardList.appendChild(li); });
+            } else if (currentTab === "rank") {
+                usersArray.sort((a, b) => b.rank - a.rank || b.pop - a.pop); usersArray.forEach((item, index) => { let li = document.createElement('li'); let rankText = item.rank === 0 ? "NO RANK" : `RANK ${item.rank}`; li.innerHTML = `<span>${index + 1}. ${item.name}</span> <span>🏆 ${rankText}</span>`; leaderboardList.appendChild(li); });
+            }
+        }
+
+        catBtn.addEventListener('mousedown', popCatOpen); catBtn.addEventListener('mouseup', popCatClose); catBtn.addEventListener('mouseleave', popCatClose);
+        catBtn.addEventListener('touchstart', function(e) { e.preventDefault(); popCatOpen(e); }); catBtn.addEventListener('touchend', function(e) { e.preventDefault(); popCatClose(); });
+    </script>
