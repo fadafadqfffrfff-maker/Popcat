@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Game Popcat Multiplayer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Mencegah highlight biru saat elemen diklik di HP Android/iOS */
+        * {
+            -webkit-tap-highlight-color: transparent;
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-10px) rotate(5deg); }
+        }
+        .animate-float {
+            animation: float 3s ease-in-out infinite;
+        }
+        /* Scrollbar kustom untuk panel chat */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.05);
+            border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body class="bg-[#b5d8a6] select-none touch-none overflow-hidden m-0 p-0 font-sans">
+
+    <div id="loading-screen" class="fixed inset-0 bg-[#b5d8a6] z-[90] flex flex-col items-center justify-center text-white">
+        <div class="w-16 h-16 border-4 border-white border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p class="font-black text-xl tracking-wider animate-pulse">MENGHUBUNGKAN KE SERVER...</p>
+    </div>
+
+    <div id="register-screen" class="fixed inset-0 bg-black/70 backdrop-blur-md z-[80] hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl w-full max-w-md p-8 shadow-2xl border border-white/20 transform scale-100 transition-transform">
+            <div class="text-center mb-6">
+                <span class="text-6xl mb-2 block animate-bounce">🐱</span>
+                <h2 class="text-2xl font-black text-gray-800">Daftar Nickname Popcat</h2>
+                <p class="text-sm text-gray-500 mt-1">Buat nama unikmu untuk memulai petualangan pop!</p>
+            </div>
+            
+            <form id="register-form" onsubmit="return false;" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Nickname Pemain</label>
+                    <input 
+                        type="text" 
+                        id="reg-nickname-input" 
+                        maxlength="15"
+                        placeholder="Contoh: Kucing_Ganteng" 
+                        class="w-full px-5 py-4 bg-gray-50 border border-gray-200 rounded-2xl text-gray-800 font-extrabold text-lg focus:outline-none focus:ring-4 focus:ring-green-400 focus:border-transparent transition-all"
+                        required
+                    >
+                </div>
+
+                <div id="register-error" class="text-red-500 text-sm font-bold text-center hidden bg-red-50 p-3 rounded-xl border border-red-100">
+                    Nama sudah terpakai!
+                </div>
+
+                <button 
+                    type="submit" 
+                    id="submit-register-btn"
+                    class="w-full py-4 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-black text-lg rounded-2xl shadow-lg transition-all active:scale-98 flex items-center justify-center gap-2"
+                >
+                    <span id="btn-register-text">Mulai Bermain 🎮</span>
+                    <div id="btn-register-spinner" class="hidden w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                </button>
+            </form>
+            <div class="mt-4 text-center text-xs text-gray-400">
+                Tanpa password! Nickname ini akan langsung disimpan di browser Anda.
+            </div>
+        </div>
+    </div>
+
+    <div class="absolute top-4 left-4 z-50 flex items-center gap-3">
+        <button 
+            id="menu-btn" 
+            class="p-3 bg-white/20 hover:bg-white/30 active:scale-95 rounded-full transition-all duration-150 shadow-lg border border-white/20"
+            title="Menu Utama"
+        >
+            <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
+            </svg>
+        </button>
+
+        <div class="flex items-center gap-2 bg-black/30 backdrop-blur-sm px-4 py-2 rounded-full border border-white/10 shadow-lg">
+            <span class="text-xl animate-bounce">🪙</span>
+            <span id="coin-text" class="text-white font-black text-lg tracking-wide">0</span>
+        </div>
+
+        <div id="luck-indicator" class="hidden flex items-center gap-1 bg-purple-600/80 backdrop-blur-sm px-3 py-1.5 rounded-full border border-purple-400/30 shadow-lg text-xs text-white font-black uppercase tracking-wider animate-pulse">
+            🍀 LUCK ACTIVE
+        </div>
+    </div>
+
+    <div class="absolute top-4 right-4 z-50 flex items-center gap-2">
+        <button 
+            id="chat-toggle-btn" 
+            class="relative p-3 bg-white/20 hover:bg-white/30 active:scale-95 rounded-full transition-all duration-150 shadow-lg border border-white/20"
+            title="Chat Room"
+        >
+            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+            </svg>
+            <span id="chat-badge" class="hidden absolute -top-1 -right-1 bg-red-500 text-white font-black text-[10px] w-5 h-5 rounded-full flex items-center justify-center shadow-md animate-bounce">0</span>
+        </button>
+    </div>
+
+    <div 
+        id="chat-drawer" 
+        class="fixed top-0 right-0 h-full w-full max-w-sm bg-white/95 backdrop-blur-md shadow-2xl z-50 transform translate-x-full transition-transform duration-300 flex flex-col border-l border-gray-100"
+    >
+        <div class="bg-gradient-to-r from-blue-600 to-indigo-600 p-5 text-white flex items-center justify-between shadow-md flex-shrink-0">
+            <div class="flex items-center gap-2">
+                <span class="text-2xl animate-pulse">💬</span>
+                <div>
+                    <h3 class="font-black text-lg">CHAT ROOM GLOBAL</h3>
+                    <p class="text-[10px] text-white/80">Ngobrol langsung dengan player lain</p>
+                </div>
+            </div>
+            <button 
+                id="close-chat" 
+                class="text-white/80 hover:text-white bg-black/20 hover:bg-black/30 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm transition-colors"
+            >
+                ✕
+            </button>
+        </div>
+
+        <div id="chat-messages" class="flex-grow p-4 overflow-y-auto space-y-3 custom-scrollbar bg-gray-50/50">
+            </div>
+
+        <form id="chat-form" onsubmit="return false;" class="p-4 bg-white border-t border-gray-100 flex gap-2 flex-shrink-0">
+            <input 
+                type="text" 
+                id="chat-input" 
+                maxlength="60"
+                placeholder="Ketik pesan..." 
+                class="flex-grow px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all font-semibold"
+                required
+            >
+            <button 
+                type="submit" 
+                class="px-4 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-bold text-sm rounded-xl transition-all shadow-md active:scale-95 flex items-center justify-center"
+            >
+                Kirim
+            </button>
+        </form>
+    </div>
+
+    <div id="game-container" class="flex flex-col items-center justify-center min-h-screen w-full cursor-pointer relative">
+        
+        <div class="absolute top-10 md:top-20 flex justify-center w-full z-10">
+            <div class="flex flex-col items-center">
+                <h1 id="score-text" class="text-7xl md:text-9xl font-black text-white drop-shadow-[0_5px_5px_rgba(0,0,0,0.4)] transition-transform duration-75">
+                    0
+                </h1>
+                <span id="multiplier-badge" class="hidden mt-2 px-3 py-1 bg-yellow-400 text-yellow-950 font-black text-xs md:text-sm rounded-full shadow-md uppercase tracking-wider animate-pulse">
+                    ⚡ <span id="multiplier-val">1</span>x Pop Aktif
+                </span>
+            </div>
+        </div>
+
+        <div class="relative w-72 h-72 md:w-[500px] md:h-[500px] pointer-events-none mt-20 flex items-center justify-center">
+            <img 
+                id="popcat-img" 
+                src="pop cat.jpg" 
+                alt="Popcat" 
+                class="absolute inset-0 w-full h-full object-contain"
+                draggable="false"
+            >
+
+            <div id="pet-koyok" class="hidden absolute top-0 -right-4 w-28 h-28 md:w-44 md:h-44 animate-float pointer-events-none z-20">
+                <svg class="w-full h-full" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <polygon points="15,40 30,15 40,35" fill="#f0e3d4" stroke="#8c7a6b" stroke-width="3" stroke-linejoin="round"/>
+                    <polygon points="20,37 30,22 35,35" fill="#e2b9a7"/>
+                    <polygon points="85,40 70,15 60,35" fill="#f0e3d4" stroke="#8c7a6b" stroke-width="3" stroke-linejoin="round"/>
+                    <polygon points="80,37 70,22 65,35" fill="#e2b9a7"/>
+                    <circle cx="50" cy="55" r="30" fill="#fcf6ef" stroke="#8c7a6b" stroke-width="3"/>
+                    <circle cx="38" cy="52" r="5" fill="#1a1a1a"/>
+                    <circle cx="36" cy="50" r="1.5" fill="#ffffff"/>
+                    <circle cx="62" cy="52" r="5" fill="#1a1a1a"/>
+                    <circle cx="64" cy="50" r="1.5" fill="#ffffff"/>
+                    <circle cx="34" cy="60" r="4" fill="#ffb3ba" opacity="0.6"/>
+                    <circle cx="66" cy="60" r="4" fill="#ffb3ba" opacity="0.6"/>
+                    <polygon points="50,57 48,55 52,55" fill="#e2b9a7"/>
+                    <path d="M46,61 Q50,65 50,61 Q50,65 54,61" stroke="#8c7a6b" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+                    <rect x="42" y="36" width="16" height="10" rx="2" transform="rotate(-10 50 41)" fill="#e5c19d" stroke="#bf946b" stroke-width="1.5"/>
+                    <circle cx="45" cy="39" r="0.5" fill="#bf946b"/>
+                    <circle cx="48" cy="38" r="0.5" fill="#bf946b"/>
+                    <circle cx="51" cy="41" r="0.5" fill="#bf946b"/>
+                    <circle cx="54" cy="40" r="0.5" fill="#bf946b"/>
+                    <circle cx="55" cy="43" r="0.5" fill="#bf946b"/>
+                    <rect x="44" y="82" width="12" height="4" rx="2" fill="#ff595e"/>
+                    <circle cx="50" cy="87" r="4" fill="#ffca3a" stroke="#8c7a6b" stroke-width="1.5"/>
+                    <circle cx="50" cy="86" r="1" fill="#1a1a1a"/>
+                    <text x="50" y="24" fill="#38a169" font-size="7" font-weight="900" text-anchor="middle" font-family="sans-serif">PET KOYOK</text>
+                </svg>
+            </div>
+        </div>
+
+        <audio id="pop-audio" src="pop-cat-original-meme.mp3" preload="auto"></audio>
+
+        <p class="fixed bottom-6 text-gray-800/50 font-bold text-sm md:text-base pointer-events-none text-center px-4 z-10">
+            Klik layar, sentuh layar HP, atau tekan tombol apa saja di keyboard!
+        </p>
+    </div>
+
+    <div 
+        id="dropdown-menu" 
+        class="absolute top-20 left-4 z-50 bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-gray-100 p-2 w-48 opacity-0 pointer-events-none transition-all duration-200 origin-top-left transform scale-95"
+    >
+        <button id="opt-leaderboard" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-green-50 text-gray-700 font-bold rounded-xl transition-all">
+            <span>🏆</span> Papan Peringkat
+        </button>
+        <button id="opt-shop" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-green-50 text-gray-700 font-bold rounded-xl transition-all mt-1">
+            <span>🛒</span> Toko Item
+        </button>
+        <button id="opt-gacha" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-green-50 text-gray-700 font-bold rounded-xl transition-all mt-1 text-purple-600">
+            <span>✨</span> Gacha Hoki
+        </button>
+    </div>
+
+    <div id="leaderboard-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 opacity-0 pointer-events-none transition-opacity duration-300">
+        <div class="bg-white rounded-3xl w-11/12 max-w-md overflow-hidden shadow-2xl transform scale-95 transition-transform duration-300 flex flex-col max-h-[80vh]">
+            <div class="bg-gradient-to-r from-green-500 to-emerald-600 p-6 text-white text-center relative flex-shrink-0">
+                <h2 class="text-2xl font-black tracking-wide">🏆 PAPAN PERINGKAT 🏆</h2>
+                <p class="text-xs text-white/80 mt-1">Pop Terbanyak di Dunia (Pemain Nyata)</p>
+                <button id="close-leaderboard" class="absolute top-4 right-4 text-white/80 hover:text-white bg-black/20 hover:bg-black/30 w-8 h-8 rounded-full flex items-center justify-center font-bold text-lg transition-colors">✕</button>
+            </div>
+            <div id="leaderboard-list" class="p-6 overflow-y-auto space-y-3 flex-grow custom-scrollbar"></div>
+            <div class="bg-gray-50 p-4 border-t border-gray-100 text-center text-xs text-gray-500 flex-shrink-0">Skor disinkronkan secara real-time ke cloud!</div>
+        </div>
+    </div>
+
+    <div id="shop-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 opacity-0 pointer-events-none transition-opacity duration-300">
+        <div class="bg-white rounded-3xl w-11/12 max-w-md overflow-hidden shadow-2xl transform scale-95 transition-transform duration-300 flex flex-col max-h-[80vh]">
+            <div class="bg-gradient-to-r from-amber-500 to-orange-600 p-6 text-white text-center relative flex-shrink-0">
+                <h2 class="text-2xl font-black tracking-wide">🛒 TOKO POPCAT 🛒</h2>
+                <p class="text-xs text-white/80 mt-1">Gunakan Koinmu untuk Membeli Power-Up</p>
+                <button id="close-shop" class="absolute top-4 right-4 text-white/80 hover:text-white bg-black/20 hover:bg-black/30 w-8 h-8 rounded-full flex items-center justify-center font-bold text-lg transition-colors">✕</button>
+            </div>
+            <div class="p-6 overflow-y-auto flex-grow space-y-4 custom-scrollbar">
+                <div class="flex items-center justify-between bg-amber-50 border border-amber-200 p-4 rounded-2xl">
+                    <span class="text-sm font-bold text-amber-900">Saldomu saat ini:</span>
+                    <span class="flex items-center gap-1 font-black text-xl text-amber-600">🪙 <span id="shop-coin-text">0</span></span>
+                </div>
+                <div class="border border-gray-100 rounded-2xl p-4 flex flex-col gap-3 shadow-sm hover:shadow-md transition-shadow">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <span class="text-3xl" id="item-icon">⚡</span>
+                            <div>
+                                <h3 class="font-extrabold text-gray-800 text-base" id="item-title">Multi-Pop Upgrade</h3>
+                                <p class="text-xs text-gray-500" id="item-desc">Mendapatkan lebih banyak skor di setiap ketukan!</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 p-2.5 rounded-xl border border-gray-100 flex items-center justify-between text-xs font-semibold text-gray-600">
+                        <span>Status saat ini: <strong id="current-multiplier-status" class="text-green-600">1x Pop</strong></span>
+                        <span id="next-multiplier-status">Selanjutnya: <strong class="text-blue-600">2x Pop</strong></span>
+                    </div>
+                    <div class="flex items-center justify-between border-t border-gray-50 pt-3 mt-1">
+                        <span class="font-black text-amber-600 flex items-center gap-1" id="cost-container">🪙 <span id="item-cost">15</span></span>
+                        <button id="buy-double-btn" class="px-5 py-2 bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-sm rounded-xl shadow-md active:scale-95 transition-all disabled:opacity-50 disabled:pointer-events-none">Beli</button>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-gray-50 p-4 border-t border-gray-100 text-center text-xs text-gray-500 flex-shrink-0">Setiap kelipatan 10 pop akan memberikanmu 1 koin!</div>
+        </div>
+    </div>
+
+    <div id="gacha-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 opacity-0 pointer-events-none transition-opacity duration-300">
+        <div class="bg-white rounded-3xl w-11/12 max-w-md overflow-hidden shadow-2xl transform scale-95 transition-transform duration-300 flex flex-col max-h-[85vh]">
+            <div class="bg-gradient-to-r from-purple-600 to-indigo-700 p-6 text-white text-center relative flex-shrink-0">
+                <h2 class="text-2xl font-black tracking-wide">✨ GACHA HOKI POP ✨</h2>
+                <p class="text-xs text-white/80 mt-1">Gunakan Koin untuk Mengundi Hadiah Impian</p>
+                <button id="close-gacha" class="absolute top-4 right-4 text-white/80 hover:text-white bg-black/20 hover:bg-black/30 w-8 h-8 rounded-full flex items-center justify-center font-bold text-lg transition-colors">✕</button>
+            </div>
+            <div class="p-6 overflow-y-auto flex-grow flex flex-col items-center justify-center space-y-6 custom-scrollbar">
+                <div class="flex items-center justify-between w-full bg-purple-50 border border-purple-200 p-4 rounded-2xl">
+                    <span class="text-sm font-bold text-purple-950">Koinmu sekarang:</span>
+                    <span class="flex items-center gap-1 font-black text-xl text-purple-600">🪙 <span id="gacha-coin-text">0</span></span>
+                </div>
+                <div class="w-full aspect-video bg-gradient-to-br from-gray-900 to-purple-950 rounded-2xl flex flex-col items-center justify-center relative p-4 text-center overflow-hidden border-2 border-purple-400/40 shadow-inner">
+                    <div id="gacha-glow" class="hidden absolute inset-0 bg-yellow-400/20 blur-xl animate-pulse"></div>
+                    <div id="gacha-display-box" class="z-10 transition-transform duration-300">
+                        <div id="gacha-icon-default" class="text-6xl animate-bounce">🎁</div>
+                        <div id="gacha-spinner" class="hidden w-12 h-12 border-4 border-purple-400 border-t-white rounded-full animate-spin"></div>
+                        <div id="gacha-result-container" class="hidden flex-col items-center justify-center space-y-2">
+                            <span id="gacha-result-emoji" class="text-6xl"></span>
+                            <h4 id="gacha-result-title" class="text-lg font-black text-white">Hadiah</h4>
+                            <p id="gacha-result-desc" class="text-xs text-purple-200 max-w-xs"></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="w-full bg-emerald-50 border border-emerald-100 rounded-2xl p-3 flex gap-3 items-center">
+                    <span class="text-3xl">🐱</span>
+                    <div class="text-xs">
+                        <h4 class="font-bold text-emerald-950">Hadiah Utama: PET KOYOK (Peluang 3%)</h4>
+                        <p class="text-emerald-700 font-medium">Bisa melipatgandakan ketukan pop kamu langsung 100x & koin bertambah 10x lipat!</p>
+                    </div>
+                </div>
+                <div class="w-full border-t border-gray-100 pt-4 flex flex-col items-center gap-2">
+                    <button id="play-gacha-btn" class="w-full py-4 bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white font-extrabold text-base rounded-2xl shadow-lg hover:shadow-xl active:scale-98 transition-all disabled:opacity-50 disabled:pointer-events-none">Putar Gacha (🪙 20 Koin)</button>
+                    <p class="text-[10px] text-gray-400 text-center">Peluang dapat Koyok naik pesat jika kamu mengaktifkan "LUCK" (🍀)</p>
+                </div>
+            </div>
+            <div class="bg-gray-50 p-4 border-t border-gray-100 text-center text-xs text-gray-500 flex-shrink-0">Peringatan sistem: KOYOK didapatkan akan langsung diumumkan di chat room!</div>
+        </div>
+    </div>
+
+    <div id="toast" class="fixed bottom-20 left-1/2 transform -translate-x-1/2 z-50 bg-gray-900 text-white px-5 py-3 rounded-full text-sm font-bold shadow-xl opacity-0 transition-opacity duration-300 pointer-events-none">Notifikasi game</div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, collection, addDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCOK9Fqjwgou6dDhcV2xzOYTbXikuSJOBU",
+            authDomain: "tikitiki-c74ef.firebaseapp.com",
+            databaseURL: "https://tikitiki-c74ef-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "tikitiki-c74ef",
+            storageBucket: "tikitiki-c74ef.firebasestorage.app",
+            messagingSenderId: "908623692064",
+            appId: "1:908623692064:web:3e291b5c29d97cb6d11745",
+            measurementId: "G-1S29JB868C"
+        };
+
+        let app, auth, db;
+        let isFirebaseActive = false;
+        
+        try {
+            app = initializeApp(firebaseConfig);
+            auth = getAuth(app);
+            db = getFirestore(app);
+            isFirebaseActive = true;
+        } catch (e) {
+            console.error("Firebase init failed, switching to local mode:", e);
+            isFirebaseActive = false;
+        }
+
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-popcat';
+
+        let count = 0;
+        let coins = 0;
+        let lastCoinAwardedAt = 0;
+        let multiplier = 1;
+        let hasKoyok = false;
+        let hasLuck = false;
+        let currentUsername = null;
+        let userId = null;
+        let unreadChatCount = 0;
+        let isOpen = false;
+        let useFallback = false;
+
+        const closedImgLocal = "pop cat.jpg";
+        const openImgLocal = "Da pop cat.jpg";
+        const fallbackClosed = "https://raw.githubusercontent.com/mewzax/popcat/master/img/p.png";
+        const fallbackOpen = "https://raw.githubusercontent.com/mewzax/popcat/master/img/op.png";
+
+        const gameContainer = document.getElementById('game-container');
+        const popcatImg = document.getElementById('popcat-img');
+        const scoreText = document.getElementById('score-text');
+        const coinText = document.getElementById('coin-text');
+        const shopCoinText = document.getElementById('shop-coin-text');
+        const popAudio = document.getElementById('pop-audio');
+        const petKoyok = document.getElementById('pet-koyok');
+        const luckIndicator = document.getElementById('luck-indicator');
+        
+        const loadingScreen = document.getElementById('loading-screen');
+        const registerScreen = document.getElementById('register-screen');
+        const registerForm = document.getElementById('register-form');
+        const regNicknameInput = document.getElementById('reg-nickname-input');
+        const registerError = document.getElementById('register-error');
+        const submitRegisterBtn = document.getElementById('submit-register-btn');
+        const btnRegisterText = document.getElementById('btn-register-text');
+        const btnRegisterSpinner = document.getElementById('btn-register-spinner');
+
+        const chatToggleBtn = document.getElementById('chat-toggle-btn');
+        const chatBadge = document.getElementById('chat-badge');
+        const chatDrawer = document.getElementById('chat-drawer');
+        const closeChatBtn = document.getElementById('close-chat');
+        const chatMessages = document.getElementById('chat-messages');
+        const chatForm = document.getElementById('chat-form');
+        const chatInput = document.getElementById('chat-input');
+
+        const multiplierBadge = document.getElementById('multiplier-badge');
+        const multiplierVal = document.getElementById('multiplier-val');
+        const itemTitle = document.getElementById('item-title');
+        const itemDesc = document.getElementById('item-desc');
+        const currentMultiplierStatus = document.getElementById('current-multiplier-status');
+        const nextMultiplierStatus = document.getElementById('next-multiplier-status');
+        const itemCost = document.getElementById('item-cost');
+        const costContainer = document.getElementById('cost-container');
+        const toast = document.getElementById('toast');
+        
+        const menuBtn = document.getElementById('menu-btn');
+        const dropdownMenu = document.getElementById('dropdown-menu');
+        const optLeaderboard = document.getElementById('opt-leaderboard');
+        const optShop = document.getElementById('opt-shop');
+        const optGacha = document.getElementById('opt-gacha');
+
+        const leaderboardModal = document.getElementById('leaderboard-modal');
+        const closeLeaderboardBtn = document.getElementById('close-leaderboard');
+        const leaderboardList = document.getElementById('leaderboard-list');
+        const shopModal = document.getElementById('shop-modal');
+        const closeShopBtn = document.getElementById('close-shop');
+        const buyDoubleBtn = document.getElementById('buy-double-btn');
+
+        const gachaModal = document.getElementById('gacha-modal');
+        const closeGachaBtn = document.getElementById('close-gacha');
+        const gachaCoinText = document.getElementById('gacha-coin-text');
+        const playGachaBtn = document.getElementById('play-gacha-btn');
+        const gachaIconDefault = document.getElementById('gacha-icon-default');
+        const gachaSpinner = document.getElementById('gacha-spinner');
+        const gachaResultContainer = document.getElementById('gacha-result-container');
+        const gachaResultEmoji = document.getElementById('gacha-result-emoji');
+        const gachaResultTitle = document.getElementById('gacha-result-title');
+        const gachaResultDesc = document.getElementById('gacha-result-desc');
+        const gachaGlow = document.getElementById('gacha-glow');
+
+        let onlinePlayers = [];
+
+        const startLocalFallbackGame = () => {
+            isFirebaseActive = false;
+            userId = localStorage.getItem('popcat_local_uid') || 'local_' + Math.random().toString(36).substr(2, 9);
+            localStorage.setItem('popcat_local_uid', userId);
+            currentUsername = localStorage.getItem('popcat_local_username');
+            
+            if (currentUsername) {
+                count = parseInt(localStorage.getItem('popcat_local_score') || '0', 10);
+                coins = parseInt(localStorage.getItem('popcat_local_coins') || '0', 10);
+                multiplier = parseInt(localStorage.getItem('popcat_local_multiplier') || '1', 10);
+                hasKoyok = localStorage.getItem('popcat_local_hasKoyok') === 'true';
+
+                if (hasKoyok) {
+                    petKoyok.classList.remove('hidden');
+                    multiplierBadge.classList.remove('hidden');
+                    multiplierBadge.className = "mt-2 px-3 py-1 bg-gradient-to-r from-emerald-400 to-green-600 text-white font-black text-xs md:text-sm rounded-full shadow-lg uppercase tracking-wider animate-bounce";
+                    multiplierVal.innerText = "100";
+                }
+
+                scoreText.innerText = count;
+                coinText.innerText = coins;
+                shopCoinText.innerText = coins;
+                gachaCoinText.innerText = coins;
+                startGameSession();
+            } else {
+                loadingScreen.classList.add('hidden');
+                registerScreen.classList.remove('hidden');
+            }
+        };
+
+        const initGameAuth = async () => {
+            if (!isFirebaseActive) {
+                startLocalFallbackGame();
+                return;
+            }
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (err) {
+                startLocalFallbackGame();
+            }
+        };
+
+        initGameAuth();
+
+        if (isFirebaseActive) {
+            onAuthStateChanged(auth, async (user) => {
+                if (user) {
+                    userId = user.uid;
+                    try {
+                        const profileRef = doc(db, 'artifacts', appId, 'users', userId, 'profile', 'data');
+                        const profileSnap = await getDoc(profileRef);
+
+                        if (profileSnap.exists()) {
+                            const data = profileSnap.data();
+                            currentUsername = data.username;
+                            if (data.score) count = data.score;
+                            if (data.coins) coins = data.coins;
+                            if (data.multiplier) multiplier = data.multiplier;
+                            if (data.hasKoyok) {
+                                hasKoyok = true;
+                                petKoyok.classList.remove('hidden');
+                                multiplierBadge.classList.remove('hidden');
+                                multiplierBadge.className = "mt-2 px-3 py-1 bg-gradient-to-r from-emerald-400 to-green-600 text-white font-black text-xs md:text-sm rounded-full shadow-lg uppercase tracking-wider animate-bounce";
+                                multiplierVal.innerText = "100";
+                            }
+                            scoreText.innerText = count;
+                            coinText.innerText = coins;
+                            shopCoinText.innerText = coins;
+                            gachaCoinText.innerText = coins;
+                            startGameSession();
+                        } else {
+                            loadingScreen.classList.add('hidden');
+                            registerScreen.classList.remove('hidden');
+                        }
+                    } catch (err) {
+                        startLocalFallbackGame();
+                    }
+                }
+            });
+        }
+
+        registerForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const inputName = regNicknameInput.value.trim();
+            if (inputName.length < 3) {
+                registerError.innerText = "Nickname minimal 3 karakter!";
+                registerError.classList.remove('hidden');
+                return;
+            }
+            const lowercaseName = inputName.toLowerCase();
+            submitRegisterBtn.disabled = true;
+            btnRegisterText.classList.add('hidden');
+            btnRegisterSpinner.classList.remove('hidden');
+
+            if (!isFirebaseActive) {
+                localStorage.setItem('popcat_local_username', inputName);
+                currentUsername = inputName;
+                registerScreen.classList.add('hidden');
+                startGameSession();
+                return;
+            }
+
+            try {
+                const usernameRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', lowercaseName);
+                const usernameSnap = await getDoc(usernameRef);
+
+                if (usernameSnap.exists()) {
+                    registerError.innerText = "Nickname sudah digunakan!";
+                    registerError.classList.remove('hidden');
+                    submitRegisterBtn.disabled = false;
+                    btnRegisterText.classList.remove('hidden');
+                    btnRegisterSpinner.classList.add('hidden');
+                } else {
+                    await setDoc(usernameRef, { uid: userId, username: inputName, createdAt: Date.now() });
+                    const profileRef = doc(db, 'artifacts', appId, 'users', userId, 'profile', 'data');
+                    await setDoc(profileRef, { username: inputName, score: 0, coins: 0, multiplier: 1, hasKoyok: false });
+                    currentUsername = inputName;
+                    registerScreen.classList.add('hidden');
+                    startGameSession();
+                }
+            } catch (err) {
+                localStorage.setItem('popcat_local_username', inputName);
+                currentUsername = inputName;
+                registerScreen.classList.add('hidden');
+                startGameSession();
+            }
+        });
+
+        function startGameSession() {
+            loadingScreen.classList.add('hidden');
+            if (!isFirebaseActive) {
+                renderLeaderboard();
+                return;
+            }
+            try {
+                const chatCollectionRef = collection(db, 'artifacts', appId, 'public', 'data', 'chats');
+                onSnapshot(chatCollectionRef, (snapshot) => {
+                    let allMessages = [];
+                    snapshot.forEach((doc) => { allMessages.push({ id: doc.id, ...doc.data() }); });
+                    allMessages.sort((a, b) => a.timestamp - b.timestamp);
+                    if (allMessages.length > 50) allMessages = allMessages.slice(allMessages.length - 50);
+                    renderChatMessages(allMessages);
+                });
+
+                const scoreCollectionRef = collection(db, 'artifacts', appId, 'public', 'data', 'leaderboard');
+                onSnapshot(scoreCollectionRef, (snapshot) => {
+                    const livePlayers = [];
+                    snapshot.forEach((doc) => { livePlayers.push({ id: doc.id, ...doc.data() }); });
+                    onlinePlayers = livePlayers.sort((a, b) => b.score - a.score);
+                    if (leaderboardModal.classList.contains('opacity-100')) renderLeaderboard();
+                });
+
+                setInterval(() => { syncScoreToCloud(); }, 3000);
+            } catch (err) {}
+        }
+
+        let lastSyncedScore = -1;
+        async function syncScoreToCloud() {
+            localStorage.setItem('popcat_local_score', count);
+            localStorage.setItem('popcat_local_coins', coins);
+            localStorage.setItem('popcat_local_multiplier', multiplier);
+            localStorage.setItem('popcat_local_hasKoyok', hasKoyok ? 'true' : 'false');
+
+            if (!isFirebaseActive || !userId || !currentUsername) return;
+            if (count === lastSyncedScore) return;
+            lastSyncedScore = count;
+
+            try {
+                const leaderDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'leaderboard', userId);
+                await setDoc(leaderDocRef, { name: currentUsername, score: count, flag: hasKoyok ? "👑" : "🇮🇩", lastUpdated: Date.now() });
+                const profileRef = doc(db, 'artifacts', appId, 'users', userId, 'profile', 'data');
+                await setDoc(profileRef, { username: currentUsername, score: count, coins: coins, multiplier: multiplier, hasKoyok: hasKoyok }, { merge: true });
+            } catch (err) {}
+        }
+
+        chatForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const msgText = chatInput.value.trim();
+            if (!msgText || !currentUsername || !isFirebaseActive) return;
+            chatInput.value = '';
+            try {
+                const chatRef = collection(db, 'artifacts', appId, 'public', 'data', 'chats');
+                await addDoc(chatRef, { sender: currentUsername, text: msgText, timestamp: Date.now(), system: false, avatar: hasKoyok ? "👑" : "🐱" });
+            } catch (err) {}
+        });
+
+        function renderChatMessages(messages) {
+            const isDrawerOpen = !chatDrawer.classList.contains('translate-x-full');
+            if (!isDrawerOpen && messages.length > 0) {
+                unreadChatCount++;
+                chatBadge.innerText = unreadChatCount;
+                chatBadge.classList.remove('hidden');
+            }
+            chatMessages.innerHTML = messages.map(msg => {
+                if (msg.system) {
+                    return `<div class="bg-gradient-to-r from-yellow-100 to-amber-150 border-2 border-yellow-400 p-3 rounded-2xl text-center shadow-sm"><span class="text-xs font-black text-amber-800 tracking-wider uppercase block">📢 SYSTEM ANNOUNCEMENT</span><p class="text-sm font-extrabold text-amber-950 mt-1 leading-snug">${msg.text}</p></div>`;
+                }
+                const isMe = msg.sender === currentUsername;
+                return `<div class="flex ${isMe ? 'justify-end' : 'justify-start'} w-full"><div><div class="flex items-center gap-1 mb-0.5 px-1 ${isMe ? 'justify-end' : 'justify-start'}"><span class="text-xs">${msg.avatar || '🐱'}</span><span class="text-[10px] font-bold text-gray-500">${msg.sender}</span></div><div class="p-3 rounded-2xl shadow-sm text-sm font-semibold break-all ${isMe ? 'bg-blue-500 text-white rounded-br-none' : 'bg-white text-gray-800 rounded-bl-none'}">${msg.text}</div></div></div>`;
+            }).join('');
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        chatToggleBtn.addEventListener('pointerdown', (e) => {
+            e.stopPropagation();
+            chatDrawer.classList.remove('translate-x-full');
+            unreadChatCount = 0;
+            chatBadge.classList.add('hidden');
+            toggleDropdown(false);
+            setTimeout(() => { chatMessages.scrollTop = chatMessages.scrollHeight; }, 100);
+        });
+
+        closeChatBtn.addEventListener('pointerdown', (e) => { e.stopPropagation(); chatDrawer.classList.add('translate-x-full'); });
+
+        popcatImg.addEventListener('error', function() {
+            if (!useFallback) { useFallback = true; updateImage(); }
+        });
+
+        function updateImage() {
+            if (isOpen) {
+                popcatImg.src = useFallback ? fallbackOpen : openImgLocal;
+            } else {
+                popcatImg.src = useFallback ? fallbackClosed : closedImgLocal;
+            }
+        }
+
+        function showToast(message) {
+            toast.innerText = message;
+            toast.classList.remove('opacity-0'); toast.classList.add('opacity-100');
+            setTimeout(() => { toast.classList.remove('opacity-100'); toast.classList.add('opacity-0'); }, 2000);
+        }
+
+        function checkCoinReward() {
+            const currentMilestone = Math.floor(count / 10);
+            const rewardMilestone = Math.floor(lastCoinAwardedAt / 10);
+            if (currentMilestone > rewardMilestone) {
+                coins += (currentMilestone - rewardMilestone) * (hasKoyok ? 10 : 1);
+                lastCoinAwardedAt = currentMilestone * 10;
+                coinText.innerText = coins; shopCoinText.innerText = coins; gachaCoinText.innerText = coins;
+                updateShopButtons(); updateGachaButton();
+                localStorage.setItem('popcat_local_coins', coins);
+            }
+        }
+
+        function handlePop(e) {
+            if (e) e.preventDefault();
+            if (leaderboardModal.classList.contains('opacity-100') || shopModal.classList.contains('opacity-100') || gachaModal.classList.contains('opacity-100') || dropdownMenu.classList.contains('opacity-100') || !chatDrawer.classList.contains('translate-x-full')) {
+                if (dropdownMenu.classList.contains('opacity-100') && e.target !== menuBtn) toggleDropdown(false);
+                return;
+            }
+            if (!isOpen) {
+                isOpen = true;
+                count += hasKoyok ? 100 : multiplier;
+                scoreText.innerText = count;
+                scoreText.style.transform = 'scale(1.1)';
+                updateImage(); checkCoinReward();
+                popAudio.currentTime = 0;
+                popAudio.play().catch(() => {});
+            }
+        }
+
+        function handleRelease(e) {
+            if (e) e.preventDefault();
+            if (isOpen) {
+                isOpen = false;
+                scoreText.style.transform = 'scale(1)';
+                updateImage();
+                localStorage.setItem('popcat_local_score', count);
+            }
+        }
+
+        function toggleDropdown(show) {
+            if (show) {
+                dropdownMenu.classList.remove('opacity-0', 'pointer-events-none', 'scale-95');
+                dropdownMenu.classList.add('opacity-100', 'scale-100');
+            } else {
+                dropdownMenu.classList.remove('opacity-100', 'scale-100');
+                dropdownMenu.classList.add('opacity-0', 'pointer-events-none', 'scale-95');
+            }
+        }
+
+        function renderLeaderboard() {
+            let mergedList = [...onlinePlayers];
+            if (currentUsername && !mergedList.some(p => p.name === currentUsername)) {
+                mergedList.push({ name: currentUsername, score: count, flag: hasKoyok ? "👑" : "🇮🇩" });
+            }
+            mergedList.sort((a, b) => b.score - a.score);
+            if (mergedList.length === 0) {
+                leaderboardList.innerHTML = `<div class="text-center text-gray-500 py-8 font-semibold">Ayo mulai menepuk!</div>`;
+                return;
+            }
+            leaderboardList.innerHTML = mergedList.map((player, index) => {
+                const isMe = player.name === currentUsername;
+                let badge = `<span class="font-bold text-lg w-7 h-7 flex items-center justify-center rounded-full bg-gray-200 text-gray-600">${index + 1}</span>`;
+                if (index === 0) badge = `🥇`; if (index === 1) badge = `🥈`; if (index === 2) badge = `🥉`;
+                return `<div class="flex items-center justify-between p-3 rounded-2xl border ${isMe ? 'ring-4 ring-green-400 font-extrabold' : 'bg-gray-50'}">
+                    <div class="flex items-center gap-3">${badge}<span class="text-sm font-semibold">${player.flag || '🇮🇩'} ${player.name}</span></div>
+                    <span class="font-black text-base">${player.score.toLocaleString('id-ID')}</span>
+                </div>`;
+            }).join('');
+        }
+
+        function updateShopButtons() {
+            if (hasKoyok) {
+                itemTitle.innerText = "Multi-Pop (Pet Koyok Aktif)";
+                nextMultiplierStatus.innerHTML = `Batas: <strong class="text-emerald-600">MAX (100x KOYOK)</strong>`;
+                buyDoubleBtn.disabled = true; costContainer.innerHTML = `<span class="text-emerald-500">MAX</span>`;
+                return;
+            }
+            currentMultiplierStatus.innerText = `${multiplier}x Pop`;
+            if (multiplier >= 10) {
+                buyDoubleBtn.disabled = true; costContainer.innerHTML = `<span class="text-red-500">MAX</span>`;
+            } else {
+                const cost = multiplier * 15;
+                itemCost.innerText = cost; buyDoubleBtn.disabled = coins < cost;
+            }
+        }
+
+        buyDoubleBtn.addEventListener('pointerdown', (e) => {
+            e.stopPropagation();
+            const cost = multiplier * 15;
+            if (coins >= cost && multiplier < 10 && !hasKoyok) {
+                coins -= cost; multiplier += 1;
+                coinText.innerText = coins; shopCoinText.innerText = coins; gachaCoinText.innerText = coins;
+                multiplierVal.innerText = multiplier; multiplierBadge.classList.remove('hidden');
+                updateShopButtons(); syncScoreToCloud();
+            }
+        });
+
+        function updateGachaButton() {
+            playGachaBtn.disabled = coins < 20;
+        }
+
+        playGachaBtn.addEventListener('pointerdown', (e) => {
+            e.stopPropagation();
+            if (coins < 20) return;
+            coins -= 20;
+            coinText.innerText = coins; shopCoinText.innerText = coins; gachaCoinText.innerText = coins;
+            playGachaBtn.disabled = true;
+            gachaIconDefault.classList.add('hidden'); gachaResultContainer.classList.add('hidden');
+            gachaSpinner.classList.remove('hidden'); gachaGlow.classList.add('hidden');
+
+            setTimeout(() => {
+                gachaSpinner.classList.add('hidden'); gachaResultContainer.classList.remove('hidden');
+                const koyokChance = hasLuck ? 30 : 3;
+                const randomVal = Math.floor(Math.random() * 100) + 1;
+
+                if (randomVal <= koyokChance && !hasKoyok) {
+                    hasKoyok = true; hasLuck = false;
+                    petKoyok.classList.remove('hidden'); luckIndicator.classList.add('hidden');
+                    multiplierBadge.classList.remove('hidden');
+                    multiplierBadge.className = "mt-2 px-3 py-1 bg-gradient-to-r from-emerald-400 to-green-600 text-white font-black text-xs md:text-sm rounded-full shadow-lg uppercase tracking-wider";
+                    multiplierVal.innerText = "100";
+                    gachaGlow.classList.remove('hidden'); gachaResultEmoji.innerText = "🐱";
+                    gachaResultTitle.innerText = "PET KOYOK!";
+                } else if (randomVal > koyokChance && randomVal <= (koyokChance + 15)) {
+                    hasLuck = true; luckIndicator.classList.remove('hidden');
+                    gachaResultEmoji.innerText = "🍀"; gachaResultTitle.innerText = "Luck Buff!";
+                } else {
+                    gachaResultEmoji.innerText = "📦"; gachaResultTitle.innerText = "Zonk!";
+                }
+                updateGachaButton(); updateShopButtons(); syncScoreToCloud();
+            }, 1500);
+        });
+
+        function openLeaderboard() { renderLeaderboard(); toggleDropdown(false); leaderboardModal.classList.remove('opacity-0', 'pointer-events-none'); leaderboardModal.classList.add('opacity-100'); }
+        function closeLeaderboard() { leaderboardModal.classList.remove('opacity-100'); leaderboardModal.classList.add('opacity-0', 'pointer-events-none'); }
+        function openShop() { updateShopButtons(); toggleDropdown(false); shopModal.classList.remove('opacity-0', 'pointer-events-none'); shopModal.classList.add('opacity-100'); }
+        function closeShop() { shopModal.classList.remove('opacity-100'); shopModal.classList.add('opacity-0', 'pointer-events-none'); }
+        function openGacha() { updateGachaButton(); toggleDropdown(false); gachaModal.classList.remove('opacity-0', 'pointer-events-none'); gachaModal.classList.add('opacity-100'); }
+        function closeGacha() { gachaModal.classList.remove('opacity-100'); gachaModal.classList.add('opacity-0', 'pointer-events-none'); }
+
+        menuBtn.addEventListener('pointerdown', (e) => { e.stopPropagation(); toggleDropdown(dropdownMenu.classList.contains('opacity-0')); });
+        optLeaderboard.addEventListener('pointerdown', (e) => { e.stopPropagation(); openLeaderboard(); });
+        optShop.addEventListener('pointerdown', (e) => { e.stopPropagation(); openShop(); });
+        optGacha.addEventListener('pointerdown', (e) => { e.stopPropagation(); openGacha(); });
+        closeLeaderboardBtn.addEventListener('pointerdown', (e) => { e.stopPropagation(); closeLeaderboard(); });
+        closeShopBtn.addEventListener('pointerdown', (e) => { e.stopPropagation(); closeShop(); });
+        closeGachaBtn.addEventListener('pointerdown', (e) => { e.stopPropagation(); closeGacha(); });
+
+        gameContainer.addEventListener('pointerdown', handlePop);
+        gameContainer.addEventListener('pointerup', handleRelease);
+        window.addEventListener('keydown', (e) => { if (!isOpen && !e.repeat) handlePop(); });
+        window.addEventListener('keyup', handleRelease);
+    </script>
+</body>
+</html>
